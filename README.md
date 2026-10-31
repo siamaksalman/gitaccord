@@ -15,7 +15,7 @@ both features, and refuse to land a change that breaks another agent's work
 unless it's declared as an override for human review.
 
 **Status:** design approved, spike complete, implementation starting.
-**Site:** http://blog.siamaksalman.me/gitaccord/
+**Site:** https://gitaccord.siamaksalman.me/
 
 ## How it works
 
