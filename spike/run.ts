@@ -27,6 +27,11 @@ const protocolFile = process.env.PROTOCOL ?? "AGENTS.md";
 const coordinated = mode !== "baseline";
 const remote = mode === "remote";
 
+// WARNING: agents run unsandboxed, with unrestricted Bash and the caller's full
+// environment (credentials included), so they can read or change anything this user
+// can. That was acceptable for this spike, where the only prompts are our own
+// scenarios on throwaway repos. Don't point this harness at untrusted prompts or
+// valuable machines; run it in a container or VM, or as a low-privilege user.
 function agentCommand(prompt: string): string[] {
   if (agentKind === "noop") return ["true"];
   // JSON output so each agent's turns, tokens and model time can be measured.

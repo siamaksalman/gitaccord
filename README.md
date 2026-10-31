@@ -15,7 +15,7 @@ both features, and refuse to land a change that breaks another agent's work
 unless it's declared as an override for human review.
 
 **Status:** design approved, spike complete, implementation starting.
-**Site:** https://siamaksalman.github.io/gitaccord/
+**Site:** http://blog.siamaksalman.me/gitaccord/
 
 ## How it works
 
@@ -59,5 +59,7 @@ with 6 agents under heavy load.
 - [`spike/`](spike/): the throwaway prototype and test harness (Bun). The hook is
   `spike/hook/agentsync2.ts`; `run.ts`, `batch.ts` and `metrics.ts` run scenarios
   against real agents and score them; `test-verify.sh` and `test-override.sh` are
-  deterministic checks.
+  deterministic checks. **The harness runs agents unsandboxed**, with unrestricted
+  shell access and your full environment: only run it in a container, a VM or as a
+  low-privilege user.
 - [`docs/index.html`](docs/index.html): the project site (GitHub Pages).
