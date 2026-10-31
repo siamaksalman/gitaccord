@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gitaccord</title>
+<meta name="description" content="Git hooks that let AI coding agents work in parallel without silently overriding each other.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 16h20M6 16c5 0 5-9 10-9M16 25c-5 0-5-9-10-9M16 7h4c4 0 4 9 6 9' fill='none' stroke='%230e7a6d' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef1f5;
+    --ink: #17202e;
+    --muted: #5b6577;
+    --rule: #d3d9e2;
+    --agent-a: #0e7a6d;
+    --agent-b: #6d4bd1;
+    --refused: #b42318;
+    --main: #17202e;
+    --code-bg: #e2e7ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121821; --ink: #e6eaf0; --muted: #9aa4b5; --rule: #2a3442;
+      --agent-a: #3fbfae; --agent-b: #a48bf0; --refused: #f2786c; --main: #e6eaf0; --code-bg: #1b2330;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121821; --ink: #e6eaf0; --muted: #9aa4b5; --rule: #2a3442;
+    --agent-a: #3fbfae; --agent-b: #a48bf0; --refused: #f2786c; --main: #e6eaf0; --code-bg: #1b2330;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1.0625rem/1.6 "Schibsted Grotesk", system-ui, sans-serif;
+  }
+  a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+  a:focus-visible { outline: 2px solid var(--agent-b); outline-offset: 3px; border-radius: 2px; }
+  code, pre { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 0.08em 0.32em; border-radius: 3px; }
+
+  .page { max-width: 46rem; margin: 0 auto; padding: 0 16px; }
+
+  header.hero { padding: 4.5rem 0 1rem; }
+  h1 {
+    font-weight: 800;
+    font-size: clamp(2.4rem, 6.5vw, 4.1rem);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    margin: 0 0 1.25rem;
+    max-width: 14ch;
+  }
+  .lede { font-size: 1.22rem; line-height: 1.5; color: var(--ink); max-width: 36rem; margin: 0 0 1.5rem; }
+  .links { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; font-weight: 500; }
+
+  /* The one memorable element: the landing, told as a commit graph. */
+  figure.graph { margin: 2.5rem 0 3rem; }
+  /* Below ~640px the labels would shrink past legibility, so the graph keeps a
+     readable width and scrolls inside its own box instead. */
+  .graph-scroll { overflow-x: auto; }
+  figure.graph svg { display: block; width: 100%; min-width: 640px; height: auto; overflow: visible; }
+  figure.graph figcaption { color: var(--muted); font-size: 0.95rem; margin-top: 0.9rem; max-width: 40rem; }
+  .lane-main { stroke: var(--main); }
+  .lane-a { stroke: var(--agent-a); }
+  .lane-b { stroke: var(--agent-b); }
+  .dot-main { fill: var(--main); }
+  .dot-a { fill: var(--agent-a); }
+  .dot-b { fill: var(--agent-b); }
+  .refused { stroke: var(--refused); }
+  .t { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; fill: var(--ink); }
+  .t-muted { fill: var(--muted); }
+  .t-refused { fill: var(--refused); }
+  .t-a { fill: var(--agent-a); }
+  .t-b { fill: var(--agent-b); }
+  /* Static on purpose: the graph must read fully in link previews and screenshots. */
+
+  section { padding: 2.25rem 0; border-top: 1px solid var(--rule); }
+  h2 { font-size: 1.6rem; line-height: 1.2; letter-spacing: -0.02em; font-weight: 700; margin: 0 0 1rem; }
+  p { margin: 0 0 1rem; max-width: 40rem; }
+
+  ol.moments { list-style: none; padding: 0; margin: 1.25rem 0 0; counter-reset: m; }
+  ol.moments li { counter-increment: m; display: grid; grid-template-columns: 2.25rem 1fr; gap: 0 0.75rem; padding: 0.85rem 0; border-top: 1px solid var(--rule); }
+  ol.moments li::before { content: counter(m); font-weight: 800; font-size: 1.3rem; line-height: 1.3; color: var(--muted); }
+  ol.moments strong { display: block; }
+
+  pre.out {
+    background: var(--code-bg); border-radius: 6px; padding: 0.9rem 1rem; overflow-x: auto;
+    line-height: 1.5; margin: 1.25rem 0; font-size: 0.82rem;
+  }
+  .out .r { color: var(--refused); }
+
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.98rem; }
+  th, td { text-align: left; padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 500; color: var(--muted); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.win { font-weight: 700; }
+  .scroll { overflow-x: auto; }
+
+  ul.open { padding-left: 1.1rem; margin: 0.5rem 0 0; }
+  ul.open li { margin: 0.4rem 0; max-width: 40rem; }
+
+  footer { border-top: 1px solid var(--rule); padding: 2rem 0 3rem; color: var(--muted); font-size: 0.95rem; }
+  .theme { background: none; border: 1px solid var(--rule); color: var(--muted); font: inherit; font-size: 0.9rem; padding: 0.25rem 0.7rem; border-radius: 999px; cursor: pointer; }
+  .theme:focus-visible { outline: 2px solid var(--agent-b); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <h1>Parallel agents, no silent overrides</h1>
+    <p class="lede">gitaccord is a set of git hooks for teams of AI coding agents. Agents keep using plain git; the hooks make them see each other's plans, agree on approaches that keep everyone's feature, and refuse to land a change that breaks another agent's work unless it's declared for human review.</p>
+    <div class="links">
+      <a href="https://github.com/siamaksalman/gitaccord">Source on GitHub</a>
+      <a href="https://github.com/siamaksalman/gitaccord/blob/main/docs/superpowers/specs/2026-10-30-git-for-agents-design.md">Read the design</a>
+    </div>
+  </header>
+
+  <figure class="graph" aria-labelledby="graph-caption">
+    <div class="graph-scroll" tabindex="0" aria-label="Commit graph, scrolls sideways on small screens">
+    <svg viewBox="0 0 720 250" role="img" aria-label="Commit graph: agent a lands pretty-printed storage; agent b's landing of compact storage is refused because a's tests fail, then accepted after b declares an override for human review.">
+      <!-- main -->
+      <line class="lane-main" x1="20" y1="125" x2="700" y2="125" stroke-width="3"/>
+      <circle class="dot-main" cx="40" cy="125" r="6"/>
+      <text class="t t-muted" x="22" y="150">main</text>
+
+      <!-- agent a: forks, works, lands -->
+      <path class="lane-a" d="M40 125 C 80 125, 80 50, 120 50 L 250 50 C 290 50, 290 125, 330 125" fill="none" stroke-width="3"/>
+      <circle class="dot-a" cx="150" cy="50" r="6"/>
+      <circle class="dot-a" cx="220" cy="50" r="6"/>
+      <circle class="dot-main" cx="330" cy="125" r="7"/>
+      <text class="t t-a" x="120" y="30">a: pretty-print tasks.json</text>
+
+      <!-- agent b: forks, works, tries to land, refused, declares override, lands -->
+      <path class="lane-b" d="M40 125 C 80 125, 80 200, 120 200 L 470 200" fill="none" stroke-width="3"/>
+      <circle class="dot-b" cx="170" cy="200" r="6"/>
+      <circle class="dot-b" cx="260" cy="200" r="6"/>
+      <text class="t t-b" x="120" y="232">b: compact tasks.json</text>
+      <path class="lane-b" d="M330 125 C 355 125, 355 200, 380 200" fill="none" stroke-width="2" stroke-dasharray="4 4"/>
+      <circle class="dot-b" cx="380" cy="200" r="6"/>
+
+      <!-- refused push -->
+      <g>
+        <line class="refused" x1="400" y1="185" x2="430" y2="155" stroke-width="2.5" stroke-dasharray="3 4"/>
+        <path class="refused" d="M424 150 l12 12 M436 150 l-12 12" stroke-width="3" stroke-linecap="round"/>
+        <text class="t t-refused" x="444" y="152">landing refused: a's own tests fail</text>
+      </g>
+
+      <!-- override declared, lands -->
+      <circle class="dot-b" cx="470" cy="200" r="6"/>
+      <text class="t t-b" x="408" y="232">Override: a (flagged for review)</text>
+      <path class="lane-b" d="M470 200 C 510 200, 510 125, 550 125" fill="none" stroke-width="3"/>
+      <circle class="dot-main" cx="550" cy="125" r="7"/>
+      <text class="t" x="480" y="84">both decisions on record;</text>
+      <text class="t" x="480" y="101">a human reviews the override</text>
+    </svg>
+    </div>
+    <figcaption id="graph-caption">A real case from our tests. Two agents were asked for opposite defaults. With plain git, whoever landed last quietly won. With gitaccord, the second landing was refused until the agent declared the override, so the trade-off reaches a person instead of disappearing.</figcaption>
+  </figure>
+
+  <section>
+    <h2>The problem isn't merge conflicts</h2>
+    <p>Capable agents resolve textual conflicts on their own. The real failure is quieter: the agent that lands last rewrites another agent's feature to fit its own, updates the tests to match, and reports success. Nothing looks wrong until someone notices the feature is gone.</p>
+    <p>With plain git, and agents merging and landing their own work, this happened in 24–28% of our test runs, and which feature survived depended on who finished last.</p>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <p>Each agent works on its own <code>agent/&lt;name&gt;</code> branch and keeps a plan, notes to other agents, and a user-level acceptance test as ordinary files in the repo. Every commit says why in a <code>Why:</code> line. The hooks act at the three moments git already has:</p>
+    <ol class="moments">
+      <li><span><strong>Commit</strong>Code waits until the plan is committed. Afterwards, the agent sees whose work overlaps with its own, including work already on main, with their plans, reasoning and notes, each shown once.</span></li>
+      <li><span><strong>Merge</strong>After <code>git merge main</code>, the agent sees whose work just came in and why, so it integrates with their intent in mind.</span></li>
+      <li><span><strong>Push to main</strong>Landing is refused while an overlap has no recorded agreement, or while another agent's own tests fail on what's being landed, unless the agent declares <code>Override:</code>, which always goes to a human.</span></li>
+    </ol>
+<pre class="out" aria-label="Example landing refusal"><span class="r">landing rejected: your changes break other agents' work, judged by their own tests:</span>
+  a: their tests fail on what you're landing (tests/acceptance/a.test.ts)
+Either:
+  - keep their behaviour (adapt your code so their tests pass), or
+  - if you must change it, add "Override: &lt;agent&gt; — &lt;what and why&gt;" to your plan.
+    Overrides are always flagged for human review.</pre>
+    <p>Agents sign their commits with their own keys, so notes from an unregistered or impersonating agent are never shown.</p>
+  </section>
+
+  <section>
+    <h2>What we measured</h2>
+    <p>About 300 runs on toy projects with deliberately clashing features, using Claude Code (Sonnet) and pi (GLM 5.3 Flash), each compared with plain git where agents also land their own work.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Result</th><th>Plain git</th><th>gitaccord</th></tr></thead>
+        <tbody>
+          <tr><td>Runs where a feature was silently overridden</td><td class="num">24–28%</td><td class="num win">0%</td></tr>
+          <tr><td>No-win trade-offs recorded and flagged for a human</td><td class="num">never</td><td class="num win">always</td></tr>
+          <tr><td>Designed clashes detected</td><td class="num">–</td><td class="num win">100%</td></tr>
+          <tr><td>Runs leaving main broken</td><td class="num">0–2%</td><td class="num win">0%</td></tr>
+          <tr><td>Extra model tokens</td><td class="num">–</td><td class="num">1.2× Claude, 2.3× GLM</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Still open</h2>
+    <ul class="open">
+      <li>Coordination costs GLM 2.3× the tokens of plain git, against a 1.5× target. Adapters for pi and Claude Code that deliver notices without commit-and-poll come next.</li>
+      <li>With six agents under heavy load, one hook call in a few hundred still takes over half a second. A compiled binary and batched reads are planned.</li>
+      <li>The landing check only protects what each agent's own tests cover.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Design approved, spike complete, implementation starting. <button class="theme" type="button" id="theme">Switch to dark</button></p>
+  </footer>
+</div>
+<script>
+  (function () {
+    var btn = document.getElementById("theme");
+    var root = document.documentElement;
+    function current() {
+      var set = root.getAttribute("data-theme");
+      if (set) return set;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    function label() { btn.textContent = current() === "dark" ? "Switch to light" : "Switch to dark"; }
+    try { var saved = localStorage.getItem("theme"); if (saved) root.setAttribute("data-theme", saved); } catch (e) {}
+    label();
+    btn.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("theme", next); } catch (e) {}
+      label();
+    });
+  })();
+</script>
+</body>
+</html>

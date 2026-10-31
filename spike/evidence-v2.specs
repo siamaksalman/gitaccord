@@ -1,0 +1,5 @@
+crowd:coord:5
+disagree:remote:5 hiddendep:remote:5
+rename:coord:3:a rename:coord:2:b
+disagree:coord:3:a disagree:coord:2:b
+nowin:coord:3:a nowin:coord:2:b

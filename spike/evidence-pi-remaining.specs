@@ -1,0 +1,17 @@
+disagree:coord:2:b
+rename:baseline:5:a
+rename:baseline:5:b
+rename:coord:5:a
+rename:coord:5:b
+hiddendep:baseline:5:a
+hiddendep:baseline:5:b
+hiddendep:coord:5:a
+hiddendep:coord:5:b
+nowin:baseline:5:a
+nowin:baseline:5:b
+nowin:coord:5:a
+nowin:coord:5:b
+crowd:baseline:10
+crowd:coord:10
+disagree:remote:5
+hiddendep:remote:5

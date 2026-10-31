@@ -1,0 +1,17 @@
+# Spike run data: ~1 GB of generated repos, agent logs and throwaway SSH test keys
+spike/runs/
+
+# Local tool and plugin state
+.swarm/
+**/.swarm/
+.claude-flow/
+**/.claude-flow/
+ruvector.db
+**/ruvector.db
+
+node_modules/
+.DS_Store
+tasks.json
+
+# Browser automation output
+.playwright-mcp/
